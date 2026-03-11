@@ -1,1 +1,67 @@
 
+name: Firebase SO Generator
+on:
+  workflow_dispatch:
+    inputs:
+      api_key:
+        description: 'Enter Firebase API Key'
+        required: true
+      db_url:
+        description: 'Enter Firebase Database URL'
+        required: true
+      app_id:
+        description: 'Enter Firebase App ID'
+        required: true
+      project_id:
+        description: 'Enter Firebase Project ID'
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Create Native Code from Form
+        run: |
+          cat <<EOF > native-lib.cpp
+          #include <jni.h>
+          #include <string>
+          extern "C" JNIEXPORT jstring JNICALL Java_ce_ef_billtwintytwoo_NativeLib_getApiKey(JNIEnv* env, jobject) {
+              return env->NewStringUTF("${{ github.event.inputs.api_key }}");
+          }
+          extern "C" JNIEXPORT jstring JNICALL Java_ce_ef_billtwintytwoo_NativeLib_getDbUrl(JNIEnv* env, jobject) {
+              return env->NewStringUTF("${{ github.event.inputs.db_url }}");
+          }
+          extern "C" JNIEXPORT jstring JNICALL Java_ce_ef_billtwintytwoo_NativeLib_getAppId(JNIEnv* env, jobject) {
+              return env->NewStringUTF("${{ github.event.inputs.app_id }}");
+          }
+          extern "C" JNIEXPORT jstring JNICALL Java_ce_ef_billtwintytwoo_NativeLib_getProjectId(JNIEnv* env, jobject) {
+              return env->NewStringUTF("${{ github.event.inputs.project_id }}");
+          }
+          EOF
+
+      - name: Set up NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r25c
+
+      - name: Compile SO Files
+        run: |
+          # Build ARM64
+          mkdir build_64 && cd build_64
+          cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 ..
+          make
+          cd ..
+          # Build ARMv7
+          mkdir build_32 && cd build_32
+          cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake -DANDROID_ABI=armeabi-v7a -DANDROID_PLATFORM=android-24 ..
+          make
+
+      - name: Upload Result
+        uses: actions/upload-artifact@v3
+        with:
+          name: Firebase_SO_Output
+          path: |
+            build_64/libnative-lib.so
+            build_32/libnative-lib.so
