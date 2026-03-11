@@ -1,4 +1,4 @@
-name: Firebase SO Generator (Full Fix)
+name: Firebase SO Generator
 
 permissions:
   contents: write
@@ -71,43 +71,27 @@ jobs:
 
       - name: Build All Architectures
         run: |
-          # 1. Build ARM64 (arm64-v8a)
+          # 1. Build ARM64
           mkdir -p build_arm64 && cd build_arm64
-          cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
-                -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 ..
-          make && cd ..
+          cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 ..
+          make && mv libnative-lib.so ../libnative-lib_arm64-v8a.so && cd ..
 
-          # 2. Build ARMv7 (armeabi-v7a)
+          # 2. Build ARMv7
           mkdir -p build_armv7 && cd build_armv7
-          cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
-                -DANDROID_ABI=armeabi-v7a -DANDROID_PLATFORM=android-24 ..
-          make && cd ..
+          cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake -DANDROID_ABI=armeabi-v7a -DANDROID_PLATFORM=android-24 ..
+          make && mv libnative-lib.so ../libnative-lib_armeabi-v7a.so && cd ..
 
-          # 3. Build x86_64 (Emulator)
-          mkdir -p build_x86_64 && cd build_x86_64
-          cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
-                -DANDROID_ABI=x86_64 -DANDROID_PLATFORM=android-24 ..
-          make && cd ..
-
-          # Organize files for easy download
-          mkdir -p output/arm64-v8a output/armeabi-v7a output/x86_64
-          cp build_arm64/libnative-lib.so output/arm64-v8a/
-          cp build_armv7/libnative-lib.so output/armeabi-v7a/
-          cp build_x86_64/libnative-lib.so output/x86_64/
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: firebase_so_all_abis
-          path: output/
+          # 3. Build x86_64
+          mkdir -p build_x86 && cd build_x86
+          cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake -DANDROID_ABI=x86_64 -DANDROID_PLATFORM=android-24 ..
+          make && mv libnative-lib.so ../libnative-lib_x86_64.so && cd ..
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         with:
           tag_name: latest
-          name: Latest SO Build (All ABIs)
+          name: Latest SO Build
           files: |
-            output/arm64-v8a/libnative-lib.so
-            output/armeabi-v7a/libnative-lib.so
-            output/x86_64/libnative-lib.so
+            libnative-lib_arm64-v8a.so
+            libnative-lib_armeabi-v7a.so
+            libnative-lib_x86_64.so
