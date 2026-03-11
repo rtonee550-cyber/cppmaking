@@ -74,8 +74,17 @@ jobs:
                 -DANDROID_PLATFORM=android-24 ..
           make
 
-      - name: Upload SO
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: firebase_so
           path: build/libnative-lib.so
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Latest SO Build
+          files: build/libnative-lib.so
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
