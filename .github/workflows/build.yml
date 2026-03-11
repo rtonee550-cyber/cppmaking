@@ -1,5 +1,11 @@
 name: Firebase SO Generator
 
+permissions:
+  contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   workflow_dispatch:
     inputs:
@@ -22,10 +28,10 @@ jobs:
 
     steps:
 
-      - name: Checkout
+      - name: Checkout Repo
         uses: actions/checkout@v4
 
-      - name: Install NDK
+      - name: Install Android NDK
         uses: nttld/setup-ndk@v1
         with:
           ndk-version: r25c
@@ -37,26 +43,26 @@ jobs:
 
           extern "C" JNIEXPORT jstring JNICALL
           Java_ce_ef_billtwintytwoo_NativeLib_getApiKey(JNIEnv* env, jobject) {
-            return env->NewStringUTF("${{ github.event.inputs.api_key }}");
+              return env->NewStringUTF("${{ github.event.inputs.api_key }}");
           }
 
           extern "C" JNIEXPORT jstring JNICALL
           Java_ce_ef_billtwintytwoo_NativeLib_getDbUrl(JNIEnv* env, jobject) {
-            return env->NewStringUTF("${{ github.event.inputs.db_url }}");
+              return env->NewStringUTF("${{ github.event.inputs.db_url }}");
           }
 
           extern "C" JNIEXPORT jstring JNICALL
           Java_ce_ef_billtwintytwoo_NativeLib_getAppId(JNIEnv* env, jobject) {
-            return env->NewStringUTF("${{ github.event.inputs.app_id }}");
+              return env->NewStringUTF("${{ github.event.inputs.app_id }}");
           }
 
           extern "C" JNIEXPORT jstring JNICALL
           Java_ce_ef_billtwintytwoo_NativeLib_getProjectId(JNIEnv* env, jobject) {
-            return env->NewStringUTF("${{ github.event.inputs.project_id }}");
+              return env->NewStringUTF("${{ github.event.inputs.project_id }}");
           }
           EOF
 
-      - name: Create CMake
+      - name: Create CMakeLists
         run: |
           cat <<EOF > CMakeLists.txt
           cmake_minimum_required(VERSION 3.10)
@@ -65,7 +71,7 @@ jobs:
           add_library(native-lib SHARED native-lib.cpp)
           EOF
 
-      - name: Build SO
+      - name: Build SO File
         run: |
           mkdir build
           cd build
@@ -86,5 +92,3 @@ jobs:
           tag_name: latest
           name: Latest SO Build
           files: build/libnative-lib.so
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
