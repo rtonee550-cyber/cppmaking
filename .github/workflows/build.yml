@@ -1,10 +1,7 @@
-name: Firebase SO Generator
+name: Firebase SO Generator (Full Fix)
 
 permissions:
   contents: write
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 on:
   workflow_dispatch:
@@ -27,7 +24,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-
       - name: Checkout Repo
         uses: actions/checkout@v4
 
@@ -40,6 +36,7 @@ jobs:
         run: |
           cat <<EOF > native-lib.cpp
           #include <jni.h>
+          #include <string>
 
           extern "C" JNIEXPORT jstring JNICALL
           Java_ce_ef_billtwintytwoo_NativeLib_getApiKey(JNIEnv* env, jobject) {
@@ -67,28 +64,50 @@ jobs:
           cat <<EOF > CMakeLists.txt
           cmake_minimum_required(VERSION 3.10)
           project(native-lib)
-
           add_library(native-lib SHARED native-lib.cpp)
+          find_library(log-lib log)
+          target_link_libraries(native-lib \${log-lib})
           EOF
 
-      - name: Build SO File
+      - name: Build All Architectures
         run: |
-          mkdir build
-          cd build
+          # 1. Build ARM64 (arm64-v8a)
+          mkdir -p build_arm64 && cd build_arm64
           cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
-                -DANDROID_ABI=arm64-v8a \
-                -DANDROID_PLATFORM=android-24 ..
-          make
+                -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 ..
+          make && cd ..
+
+          # 2. Build ARMv7 (armeabi-v7a)
+          mkdir -p build_armv7 && cd build_armv7
+          cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
+                -DANDROID_ABI=armeabi-v7a -DANDROID_PLATFORM=android-24 ..
+          make && cd ..
+
+          # 3. Build x86_64 (Emulator)
+          mkdir -p build_x86_64 && cd build_x86_64
+          cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
+                -DANDROID_ABI=x86_64 -DANDROID_PLATFORM=android-24 ..
+          make && cd ..
+
+          # Organize files for easy download
+          mkdir -p output/arm64-v8a output/armeabi-v7a output/x86_64
+          cp build_arm64/libnative-lib.so output/arm64-v8a/
+          cp build_armv7/libnative-lib.so output/armeabi-v7a/
+          cp build_x86_64/libnative-lib.so output/x86_64/
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: firebase_so
-          path: build/libnative-lib.so
+          name: firebase_so_all_abis
+          path: output/
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         with:
           tag_name: latest
-          name: Latest SO Build
-          files: build/libnative-lib.so
+          name: Latest SO Build (All ABIs)
+          files: |
+            output/arm64-v8a/libnative-lib.so
+            output/armeabi-v7a/libnative-lib.so
+            output/x86_64/libnative-lib.so
